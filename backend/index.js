@@ -6,11 +6,9 @@ const app = express()
 app.use(express.json())
 app.use(cors())
 
-const router
 
-app.post("/signup", async(req,res)=>{
-    
-})
+
+
 
 
 
