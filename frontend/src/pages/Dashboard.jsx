@@ -20,7 +20,7 @@ export default function Dashboard() {
           </h1>
           <button
             onClick={handleLogout}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            className="border-2 border-red-500 py-2 px-4 rounded-2xl cursor-pointer hover:bg-red-600 "
           >
             Logout
           </button>
