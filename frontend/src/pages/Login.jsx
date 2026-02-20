@@ -19,7 +19,7 @@ export default function Login() {
               Fraud Detection
             </h1>
             <p className="text-gray-300 text-sm md:text-base">
-              Secure Authentication & Anomaly Detectioniuhfuifhiuhfiuhfiuhfihfiuhfiuhfihfiuhfiuhf
+              Secure Authentication & Anomaly Detection
             </p>
           </div>
 
