@@ -6,34 +6,76 @@ const auth = require("../middleware/middleware");
 const router = express.Router();
 
 router.post("/", auth, async (req, res) => {
-  const { amount, location, device } = req.body;
+  const requiredFields = [
+    "transaction_amount",
+    "account_age",
+    "transaction_type",
+    "time_of_transaction",
+    "device_used",
+    "location",
+    "payment_method",
+    "number_of_transactions_last_24h",
+    "previous_fraudulent_transactions",
+  ];
 
-  // // Call ML service
-  // const mlResponse = await axios.post(process.env.ML_SERVICE_URL, {
-  //   amount,
-  //   location,
-  //   device
-  // });
+  const missing = requiredFields.filter((field) => req.body[field] === undefined);
+  if (missing.length > 0) {
+    return res.status(400).json({
+      error: "Missing required fields",
+      missing_fields: missing,
+    });
+  }
 
-  const fraud_score = 0.8  //mlResponse.data.fraud_score;
+  const payload = {
+    transaction_amount: Number(req.body.transaction_amount),
+    account_age: Number(req.body.account_age),
+    number_of_transactions_last_24h: Number(req.body.number_of_transactions_last_24h),
+    previous_fraudulent_transactions: Number(req.body.previous_fraudulent_transactions),
+    transaction_type: String(req.body.transaction_type),
+    time_of_transaction: String(req.body.time_of_transaction),
+    device_used: String(req.body.device_used),
+    location: String(req.body.location),
+    payment_method: String(req.body.payment_method),
+  };
 
-  let risk_level = "Low";
-  if (fraud_score > 0.7) risk_level = "High";
-  else if (fraud_score > 0.3) risk_level = "Medium";
+  const numericFields = [
+    "transaction_amount",
+    "account_age",
+    "number_of_transactions_last_24h",
+    "previous_fraudulent_transactions",
+  ];
+  for (const f of numericFields) {
+    if (Number.isNaN(payload[f])) {
+      return res.status(400).json({ error: `Invalid numeric value for field ${f}` });
+    }
+  }
 
-  await Transaction.create({
-    userId: req.user.id,
-    amount,
-    location,
-    device,
-    fraud_score,
-    risk_level
-  });
+  try {
+    const mlResponse = await axios.post(process.env.ML_SERVICE_URL, payload);
+    const {
+      prediction = 0,
+      fraud_probability = 0,
+      risk_level = "Low",
+    } = mlResponse.data || {};
 
-  res.json({
-    fraud_probability: fraud_score,
-    risk_level
-  });
+    await Transaction.create({
+      userId: req.user.id,
+      model_input: payload,
+      prediction,
+      fraud_score: fraud_probability,
+      risk_level,
+    });
+
+    return res.json({
+      prediction,
+      fraud_probability,
+      risk_level,
+    });
+  } catch (error) {
+    const statusCode = error.response?.status || 500;
+    const details = error.response?.data || { error: "ML service unavailable" };
+    return res.status(statusCode).json(details);
+  }
 });
 
 module.exports = router;
