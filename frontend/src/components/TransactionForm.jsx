@@ -55,7 +55,7 @@ const paymentOptions = [
   "Unknown",
 ];
 
-export default function TransactionForm() {
+export default function TransactionForm({ onTransactionProcessed }) {
   const [formData, setFormData] = useState(initialForm);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -77,6 +77,8 @@ export default function TransactionForm() {
       };
       const res = await api.post("/api/transaction", payload);
       setResult(res.data);
+      setFormData(initialForm);
+      onTransactionProcessed?.(res.data);
     } catch (err) {
       alert(err?.response?.data?.error || "Error submitting transaction");
     } finally {
@@ -89,6 +91,13 @@ export default function TransactionForm() {
 
   return (
     <div className="bg-gray-800 p-6 rounded-lg w-full max-w-2xl flex flex-col">
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold">Manual Transaction Scoring</h2>
+        <p className="text-sm text-gray-300">
+          Submit a single transaction to inspect the hybrid fraud score and reason codes.
+        </p>
+      </div>
+
       {numericFields.map((field) => (
         <input
           key={field.key}
@@ -185,8 +194,20 @@ export default function TransactionForm() {
             <b>{(result.fraud_probability * 100).toFixed(2)}%</b>
           </p>
           <p>
+            Supervised Score:{" "}
+            <b>{((result.supervised_probability ?? 0) * 100).toFixed(2)}%</b>
+          </p>
+          <p>
+            Anomaly Score: <b>{((result.anomaly_score ?? 0) * 100).toFixed(2)}%</b>
+          </p>
+          <p>
             Risk Level: <b>{result.risk_level}</b>
           </p>
+          {result.reason_codes?.length > 0 && (
+            <p>
+              Reasons: <b>{result.reason_codes.join(", ")}</b>
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -1,9 +1,9 @@
 ## Fraud Detection (Full Stack + ML)
 
 This repo contains:
-- **`ml-service/`**: Flask ML API (`/predict`) that trains a model from the provided CSV and serves fraud probability.
-- **`backend/`**: Node/Express API that calls the ML service and stores transaction + prediction in MongoDB.
-- **`frontend/`**: React dashboard with a transaction form (dropdowns for categorical fields).
+- **`ml-service/`**: Flask ML API (`/predict`) that trains a hybrid fraud model from the provided CSV and serves supervised + anomaly-aware risk scores.
+- **`backend/`**: Node/Express API that calls the ML service, stores transactions in MongoDB, exposes dashboard analytics, and runs transaction simulations.
+- **`frontend/`**: React dashboard with manual scoring, live analytics, generated traffic controls, and visual charts.
 
 ---
 
@@ -86,8 +86,18 @@ Open the Vite URL (usually `http://localhost:5173`), login, then submit a transa
 
 ---
 
+## Version 2 Features
+
+- Manual transaction scoring with hybrid risk output.
+- Simulation control to generate 100-1000 scored transactions over a chosen duration.
+- Dashboard analytics for fraud rate, risk distribution, payment methods, locations, and score trend.
+- Recent transaction feed with source, score, risk level, and reason codes.
+
+---
+
 ## Notes
 
 - `ml-service/fraud_detection_model.pkl` is **ignored by git** (it’s generated locally by training).
 - Categorical inputs are sent as **human-readable labels** (dropdowns) and encoded inside ML service.
+- When running the Python service in WSL, use the local virtual environment at `ml-service/.venv`.
 

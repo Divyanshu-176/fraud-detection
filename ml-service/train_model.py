@@ -4,6 +4,7 @@ from pathlib import Path
 import pickle
 
 import pandas as pd
+from sklearn.ensemble import IsolationForest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
@@ -75,10 +76,20 @@ def train_and_save_model() -> None:
     )
     model.fit(X_train, y_train)
 
+    contamination = float(df[TARGET_COLUMN].mean()) if TARGET_COLUMN in df else 0.1
+    contamination = min(max(contamination, 0.01), 0.25)
+    anomaly_model = IsolationForest(
+        contamination=contamination,
+        random_state=42,
+        n_estimators=200,
+    )
+    anomaly_model.fit(X_imputed)
+
     accuracy = model.score(X_test, y_test)
 
     artifact = {
         "model": model,
+        "anomaly_model": anomaly_model,
         "imputer": imputer,
         "feature_columns": FEATURE_COLUMNS,
         "categorical_columns": CATEGORICAL_COLUMNS,

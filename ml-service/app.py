@@ -23,6 +23,7 @@ def load_artifact():
 
 artifact = load_artifact()
 model = artifact["model"]
+anomaly_model = artifact.get("anomaly_model")
 imputer = artifact["imputer"]
 feature_columns = artifact["feature_columns"]
 categorical_columns = set(artifact.get("categorical_columns", []))
@@ -89,20 +90,59 @@ def predict():
     input_df = pd.DataFrame([row])[feature_columns]
     transformed = imputer.transform(input_df)
 
-    prediction = int(model.predict(transformed)[0])
-    fraud_probability = float(model.predict_proba(transformed)[0][1])
+    supervised_probability = float(model.predict_proba(transformed)[0][1])
+    model_prediction = int(model.predict(transformed)[0])
+
+    anomaly_score = 0.0
+    if anomaly_model is not None:
+        raw_anomaly_score = float(anomaly_model.decision_function(transformed)[0])
+        anomaly_score = max(0.0, min(1.0, (0.2 - raw_anomaly_score) / 0.4))
+
+    reason_codes = []
+    heuristic_score = 0.0
+    if float(payload["transaction_amount"]) >= 3000:
+        heuristic_score += 0.15
+        reason_codes.append("high_amount")
+    if float(payload["number_of_transactions_last_24h"]) >= 15:
+        heuristic_score += 0.15
+        reason_codes.append("high_velocity")
+    if float(payload["previous_fraudulent_transactions"]) >= 2:
+        heuristic_score += 0.2
+        reason_codes.append("prior_fraud_history")
+    if str(payload["device_used"]) == "Unknown":
+        heuristic_score += 0.1
+        reason_codes.append("unknown_device")
+    if str(payload["time_of_transaction"]) in {"0", "1", "2", "3", "4", "23"}:
+        heuristic_score += 0.05
+        reason_codes.append("odd_transaction_hour")
+
+    final_score = min(
+        1.0,
+        max(
+            supervised_probability,
+            (supervised_probability * 0.6) + (anomaly_score * 0.25) + heuristic_score,
+        ),
+    )
+
+    prediction = int(final_score >= 0.5 or model_prediction == 1)
+    alert_triggered = final_score >= 0.8
 
     risk_level = "Low"
-    if fraud_probability > 0.7:
+    if final_score >= 0.8:
         risk_level = "High"
-    elif fraud_probability > 0.3:
+    elif final_score >= 0.45:
         risk_level = "Medium"
 
     return jsonify(
         {
             "prediction": prediction,
-            "fraud_probability": fraud_probability,
+            "fraud_probability": final_score,
+            "supervised_probability": supervised_probability,
+            "anomaly_score": anomaly_score,
+            "final_score": final_score,
             "risk_level": risk_level,
+            "alert_triggered": alert_triggered,
+            "reason_codes": reason_codes,
         }
     )
 
