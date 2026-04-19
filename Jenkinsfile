@@ -14,7 +14,11 @@ pipeline {
 
     stage('Deploy') {
       steps {
-        sh 'docker compose up --build -d'
+        sh '''
+        cd $WORKSPACE
+        docker compose down
+        docker compose up --build -d
+        '''
       }
     }
   }
