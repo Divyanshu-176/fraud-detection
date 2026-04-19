@@ -16,15 +16,6 @@ services:
       - "5000:5000"
     env_file:
     - .env  
-    environment:
-      SHARED_ANALYTICS: ${SHARED_ANALYTICS:-true}
-      MONGO_URI: ${MONGO_URI:-mongodb://host.docker.internal:27017/fraud-detection}
-      ML_SERVICE_URL: ${ML_SERVICE_URL:-http://ml-service:8000/predict}
-      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-use-openssl-rand-hex-32}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
-      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-http://localhost:8080/auth/github/callback}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
