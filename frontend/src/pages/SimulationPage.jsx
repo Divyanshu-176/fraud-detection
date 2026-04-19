@@ -4,7 +4,7 @@ import TransactionForm from "../components/TransactionForm";
 import { useDashboardPolling } from "../hooks/useDashboardPolling";
 
 export default function SimulationPage() {
-  const { stats, fetchDashboardData, error } = useDashboardPolling(5000);
+  const { stats, fetchDashboardData, error } = useDashboardPolling();
   const [simulating, setSimulating] = useState(false);
   const [form, setForm] = useState({
     count: 250,

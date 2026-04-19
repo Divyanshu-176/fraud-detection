@@ -80,6 +80,16 @@ function normalizeUserIdForStorage(userFromJwt) {
   return str;
 }
 
+/** When true (default), stats/history aggregate all users so multiple clients see the same dashboard. */
+function isSharedAnalytics() {
+  const v = String(process.env.SHARED_ANALYTICS ?? "true").toLowerCase();
+  return v !== "false" && v !== "0" && v !== "no";
+}
+
+function analyticsQuery(userFromJwt) {
+  return isSharedAnalytics() ? {} : transactionUserScope(userFromJwt);
+}
+
 function normalizePayload(input) {
   const missing = requiredFields.filter((field) => input[field] === undefined || input[field] === "");
   if (missing.length > 0) {
@@ -279,7 +289,7 @@ router.post("/", auth, async (req, res) => {
 router.get("/history", auth, async (req, res) => {
   const limit = clamp(Number(req.query.limit) || 50, 1, 250);
 
-  const transactions = await Transaction.find(transactionUserScope(req.user))
+  const transactions = await Transaction.find(analyticsQuery(req.user))
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
@@ -288,6 +298,7 @@ router.get("/history", auth, async (req, res) => {
     transactions.map((tx) => ({
       id: tx._id,
       transaction_id: tx.transactionId,
+      user_id: tx.userId,
       source: tx.source,
       simulation_id: tx.simulationId,
       prediction: tx.prediction,
@@ -310,7 +321,7 @@ router.get("/history", auth, async (req, res) => {
 
 router.get("/stats", auth, async (req, res) => {
   try {
-  const scope = transactionUserScope(req.user);
+  const scope = analyticsQuery(req.user);
   const defaultLimit = 3000;
   const maxLimit = 10000;
   const limit = clamp(Number(req.query.limit) || defaultLimit, 1, maxLimit);
@@ -387,10 +398,13 @@ router.get("/stats", auth, async (req, res) => {
   const activity_buckets = buildActivityBuckets(ordered);
 
   const uidForJob = normalizeUserIdForStorage(req.user);
-  const simulation_status = [...simulations.values()]
-    .filter((job) => String(job.userId) === String(uidForJob ?? req.user.id))
+  const allJobs = [...simulations.values()];
+  const jobsForResponse = isSharedAnalytics()
+    ? allJobs
+    : allJobs.filter((job) => String(job.userId) === String(uidForJob ?? req.user.id));
+  const simulation_status = jobsForResponse
     .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
-    .slice(0, 5)
+    .slice(0, 10)
     .map((job) => ({
       simulation_id: job.id,
       status: job.status,
@@ -416,6 +430,7 @@ router.get("/stats", auth, async (req, res) => {
       total_in_database: totalInDatabase,
       analytics_sample_size: transactions.length,
       analytics_limit_requested: limit,
+      shared_analytics: isSharedAnalytics(),
     },
     charts: {
       risk_distribution,

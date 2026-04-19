@@ -1,11 +1,36 @@
-services:
-  mongo:
-    image: mongo:latest
-    container_name: mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
+# App stack: ML + API + static UI. Use your existing Mongo on the host (or another container) via MONGO_URI.
+# Jenkins is intentionally NOT included (run your existing Jenkins container separately).
 
-volumes:
-  mongo_data:
+services:
+  ml-service:
+    build: ./ml-service
+    ports:
+      - "8000:8000"
+    environment:
+      FLASK_DEBUG: "0"
+      PORT: "8000"
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      SHARED_ANALYTICS: ${SHARED_ANALYTICS:-true}
+      MONGO_URI: ${MONGO_URI:-mongodb://host.docker.internal:27017/fraud-detection}
+      ML_SERVICE_URL: ${ML_SERVICE_URL:-http://ml-service:8000/predict}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-use-openssl-rand-hex-32}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-http://localhost:8080/auth/github/callback}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - ml-service
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

@@ -24,6 +24,8 @@ app.use("/api/transaction", transactionRoutes);
 
 app.get("/", (_, res) => res.send("Backend running"));
 
-app.listen(5000, () =>
-  console.log("Backend running on port 5000")
+const port = Number(process.env.PORT) || 5000;
+const host = process.env.HOST || "0.0.0.0";
+app.listen(port, host, () =>
+  console.log(`Backend running on http://${host}:${port}`)
 );

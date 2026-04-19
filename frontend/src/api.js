@@ -14,6 +14,7 @@ async function request(method, url, body) {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    cache: "no-store",
   });
 
   const text = await res.text();

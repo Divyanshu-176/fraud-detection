@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 
-export function useDashboardPolling(intervalMs = 5000) {
+export function useDashboardPolling(intervalMs = 3000) {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
@@ -40,7 +40,16 @@ export function useDashboardPolling(intervalMs = 5000) {
   useEffect(() => {
     fetchDashboardData();
     const id = window.setInterval(fetchDashboardData, intervalMs);
-    return () => window.clearInterval(id);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        fetchDashboardData();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [fetchDashboardData, intervalMs]);
 
   return { stats, history, loading, error, fetchDashboardData };

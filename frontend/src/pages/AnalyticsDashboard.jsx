@@ -14,7 +14,7 @@ function KpiCard({ label, value, hint }) {
 }
 
 export default function AnalyticsDashboard() {
-  const { stats, history, loading, error, fetchDashboardData } = useDashboardPolling(5000);
+  const { stats, history, loading, error, fetchDashboardData } = useDashboardPolling();
 
   const summaryCards = useMemo(() => {
     if (!stats) return [];
@@ -56,8 +56,8 @@ export default function AnalyticsDashboard() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Analytics</h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            KPIs and charts aggregate a wide recent window (not only an active simulation). Recent activity lists your
-            latest rows across manual and simulated traffic.
+            KPIs and charts aggregate a wide recent window (not only an active simulation). With shared analytics
+            (default), recent activity includes all users’ latest rows; the User column shows a short id suffix.
           </p>
         </div>
         <button
@@ -135,6 +135,7 @@ export default function AnalyticsDashboard() {
               <thead className="bg-[var(--background)]/80 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
                 <tr>
                   <th className="px-4 py-3">Time</th>
+                  <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Source</th>
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Location</th>
@@ -147,7 +148,7 @@ export default function AnalyticsDashboard() {
               <tbody className="divide-y divide-[var(--border)]">
                 {!history.length && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
+                    <td colSpan={9} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
                       No rows yet. After your first scored transaction, activity will show here.
                     </td>
                   </tr>
@@ -156,6 +157,9 @@ export default function AnalyticsDashboard() {
                   <tr key={item.id} className="transition-colors hover:bg-[var(--surface-hover)]/50">
                     <td className="whitespace-nowrap px-4 py-3 text-[var(--muted)]">
                       {new Date(item.createdAt).toLocaleTimeString()}
+                    </td>
+                    <td className="max-w-[88px] truncate px-4 py-3 font-mono text-xs text-[var(--muted)]">
+                      {item.user_id != null ? String(item.user_id).slice(-6) : "—"}
                     </td>
                     <td className="px-4 py-3 capitalize">{item.source}</td>
                     <td className="px-4 py-3 tabular-nums">${Number(item.amount || 0).toFixed(2)}</td>
