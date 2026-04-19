@@ -10,7 +10,7 @@ export default function LoginSuccess() {
 
     if (token) {
       localStorage.setItem("token", token);
-      navigate("/dashboard");
+      navigate("/analytics");
     }
   }, []);
 

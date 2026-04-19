@@ -1,6 +1,6 @@
 export default function Login() {
   const loginWithGithub = () => {
-    window.location.href = "http://localhost:5000/auth/github";
+    window.location.href = `${window.location.origin}/auth/github`;
   };
 
   return (

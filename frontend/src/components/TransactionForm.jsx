@@ -14,15 +14,15 @@ const initialForm = {
 };
 
 const numericFields = [
-  { key: "transaction_amount", label: "Transaction Amount", step: "0.01" },
-  { key: "account_age", label: "Account Age (months)" },
+  { key: "transaction_amount", label: "Transaction amount", step: "0.01" },
+  { key: "account_age", label: "Account age (months)" },
   {
     key: "number_of_transactions_last_24h",
-    label: "Number of Transactions (last 24h)",
+    label: "Transactions (last 24h)",
   },
   {
     key: "previous_fraudulent_transactions",
-    label: "Previous Fraudulent Transactions",
+    label: "Prior fraudulent txs",
   },
 ];
 
@@ -55,6 +55,9 @@ const paymentOptions = [
   "Unknown",
 ];
 
+const fieldClass =
+  "w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition-shadow focus:ring-2 focus:ring-[var(--accent)]/25";
+
 export default function TransactionForm({ onTransactionProcessed }) {
   const [formData, setFormData] = useState(initialForm);
   const [result, setResult] = useState(null);
@@ -86,126 +89,128 @@ export default function TransactionForm({ onTransactionProcessed }) {
     }
   };
 
-  const setField = (key) => (e) =>
-    setFormData((prev) => ({ ...prev, [key]: e.target.value }));
+  const setField = (key) => (e) => setFormData((prev) => ({ ...prev, [key]: e.target.value }));
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg w-full max-w-2xl flex flex-col">
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold">Manual Transaction Scoring</h2>
-        <p className="text-sm text-gray-300">
-          Submit a single transaction to inspect the hybrid fraud score and reason codes.
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold">Manual scoring</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Score a single transaction and inspect hybrid output and reason codes.
         </p>
       </div>
 
-      {numericFields.map((field) => (
-        <input
-          key={field.key}
-          className="w-full mb-3 p-2 rounded text-black bg-white"
-          type="number"
-          step={field.step || "1"}
-          placeholder={field.label}
-          value={formData[field.key]}
-          onChange={setField(field.key)}
-        />
-      ))}
-
-      <select
-        className="w-full mb-3 p-2 rounded text-black bg-white"
-        value={formData.transaction_type}
-        onChange={setField("transaction_type")}
-      >
-        <option value="">Select Transaction Type</option>
-        {transactionTypeOptions.map((v) => (
-          <option key={v} value={v}>
-            {v}
-          </option>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {numericFields.map((field) => (
+          <label key={field.key} className="flex flex-col gap-1.5 text-xs font-medium text-[var(--muted)]">
+            {field.label}
+            <input
+              className={fieldClass}
+              type="number"
+              step={field.step || "1"}
+              placeholder="0"
+              value={formData[field.key]}
+              onChange={setField(field.key)}
+            />
+          </label>
         ))}
-      </select>
+      </div>
 
-      <select
-        className="w-full mb-3 p-2 rounded text-black bg-white"
-        value={formData.time_of_transaction}
-        onChange={setField("time_of_transaction")}
-      >
-        <option value="">Select Time of Transaction (Hour)</option>
-        {hourOptions.map((h) => (
-          <option key={h} value={h}>
-            {h}:00
-          </option>
-        ))}
-      </select>
-
-      <select
-        className="w-full mb-3 p-2 rounded text-black bg-white"
-        value={formData.device_used}
-        onChange={setField("device_used")}
-      >
-        <option value="">Select Device Used</option>
-        {deviceOptions.map((v) => (
-          <option key={v} value={v}>
-            {v}
-          </option>
-        ))}
-      </select>
-
-      <select
-        className="w-full mb-3 p-2 rounded text-black bg-white"
-        value={formData.location}
-        onChange={setField("location")}
-      >
-        <option value="">Select Location</option>
-        {locationOptions.map((v) => (
-          <option key={v} value={v}>
-            {v}
-          </option>
-        ))}
-      </select>
-
-      <select
-        className="w-full mb-3 p-2 rounded text-black bg-white"
-        value={formData.payment_method}
-        onChange={setField("payment_method")}
-      >
-        <option value="">Select Payment Method</option>
-        {paymentOptions.map((v) => (
-          <option key={v} value={v}>
-            {v}
-          </option>
-        ))}
-      </select>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--muted)]">
+          Transaction type
+          <select className={fieldClass} value={formData.transaction_type} onChange={setField("transaction_type")}>
+            <option value="">Select…</option>
+            {transactionTypeOptions.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--muted)]">
+          Hour (0–23)
+          <select className={fieldClass} value={formData.time_of_transaction} onChange={setField("time_of_transaction")}>
+            <option value="">Select…</option>
+            {hourOptions.map((h) => (
+              <option key={h} value={h}>
+                {h}:00
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--muted)]">
+          Device
+          <select className={fieldClass} value={formData.device_used} onChange={setField("device_used")}>
+            <option value="">Select…</option>
+            {deviceOptions.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--muted)]">
+          Location
+          <select className={fieldClass} value={formData.location} onChange={setField("location")}>
+            <option value="">Select…</option>
+            {locationOptions.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="sm:col-span-2 flex flex-col gap-1.5 text-xs font-medium text-[var(--muted)]">
+          Payment method
+          <select className={fieldClass} value={formData.payment_method} onChange={setField("payment_method")}>
+            <option value="">Select…</option>
+            {paymentOptions.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <button
+        type="button"
         onClick={submitTransaction}
         disabled={loading}
-        className="w-full bg-blue-600 py-2 rounded font-semibold"
+        className="mt-6 w-full rounded-xl bg-[var(--accent)] py-3 text-sm font-semibold text-[var(--accent-contrast)] shadow-sm transition-opacity hover:opacity-95 disabled:opacity-60"
       >
-        {loading ? "Processing..." : "Submit Transaction"}
+        {loading ? "Scoring…" : "Submit & score"}
       </button>
 
       {result && (
-        <div className="mt-4 bg-gray-900 p-4 rounded">
+        <div className="mt-6 space-y-2 rounded-xl border border-[var(--border)] bg-[var(--background)]/60 p-4 text-sm">
           <p>
-            Prediction:{" "}
-            <b>{result.prediction === 1 ? "Fraudulent" : "Legitimate"}</b>
+            <span className="text-[var(--muted)]">Prediction</span>{" "}
+            <span className="font-semibold">{result.prediction === 1 ? "Fraudulent" : "Legitimate"}</span>
           </p>
           <p>
-            Fraud Probability:{" "}
-            <b>{(result.fraud_probability * 100).toFixed(2)}%</b>
+            <span className="text-[var(--muted)]">Fraud probability</span>{" "}
+            <span className="font-semibold tabular-nums">{(result.fraud_probability * 100).toFixed(2)}%</span>
           </p>
           <p>
-            Supervised Score:{" "}
-            <b>{((result.supervised_probability ?? 0) * 100).toFixed(2)}%</b>
+            <span className="text-[var(--muted)]">Supervised</span>{" "}
+            <span className="font-semibold tabular-nums">
+              {((result.supervised_probability ?? 0) * 100).toFixed(2)}%
+            </span>
           </p>
           <p>
-            Anomaly Score: <b>{((result.anomaly_score ?? 0) * 100).toFixed(2)}%</b>
+            <span className="text-[var(--muted)]">Anomaly</span>{" "}
+            <span className="font-semibold tabular-nums">{((result.anomaly_score ?? 0) * 100).toFixed(2)}%</span>
           </p>
           <p>
-            Risk Level: <b>{result.risk_level}</b>
+            <span className="text-[var(--muted)]">Risk</span>{" "}
+            <span className="font-semibold">{result.risk_level}</span>
           </p>
           {result.reason_codes?.length > 0 && (
-            <p>
-              Reasons: <b>{result.reason_codes.join(", ")}</b>
+            <p className="text-xs leading-relaxed text-[var(--muted)]">
+              <span className="font-medium text-[var(--foreground)]">Reasons: </span>
+              {result.reason_codes.join(", ")}
             </p>
           )}
         </div>

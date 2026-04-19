@@ -30,7 +30,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Train + create local artifact (NOT committed to git)
-python3 train_model.py
+# python3 train_model.py
 
 # Start API on :8000
 python3 app.py

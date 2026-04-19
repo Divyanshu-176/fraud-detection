@@ -1,7 +1,9 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import DashboardLayout from "./components/layout/DashboardLayout";
+import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 import Login from "./pages/Login";
 import LoginSuccess from "./pages/LoginSuccess";
-import Dashboard from "./pages/Dashboard";
+import SimulationPage from "./pages/SimulationPage";
 
 export default function App() {
   return (
@@ -9,7 +11,11 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/login-success" element={<LoginSuccess />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route element={<DashboardLayout />}>
+          <Route path="/analytics" element={<AnalyticsDashboard />} />
+          <Route path="/simulation" element={<SimulationPage />} />
+        </Route>
+        <Route path="/dashboard" element={<Navigate to="/analytics" replace />} />
       </Routes>
     </BrowserRouter>
   );

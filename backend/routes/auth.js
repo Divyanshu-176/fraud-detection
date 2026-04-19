@@ -39,9 +39,8 @@ router.get("/github/callback", passport.authenticate("github", { session: false 
       { expiresIn: "1d" }
     );
 
-    res.redirect(
-      `http://localhost:5173/login-success?token=${token}`
-    );
+    const frontendBase = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+    res.redirect(`${frontendBase}/login-success?token=${token}`);
   }
 );
 

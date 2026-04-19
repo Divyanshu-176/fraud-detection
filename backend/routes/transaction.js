@@ -1,6 +1,7 @@
 const express = require("express");
 const crypto = require("crypto");
 const axios = require("axios");
+const mongoose = require("mongoose");
 const Transaction = require("../models/transaction");
 const auth = require("../middleware/middleware");
 
@@ -53,6 +54,30 @@ function pickRandom(list) {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+/** JWT can carry `id` as string; Mongo may store userId as ObjectId or string — match both. */
+function transactionUserScope(userFromJwt) {
+  const raw = userFromJwt?.id ?? userFromJwt?._id ?? userFromJwt?.userId;
+  if (raw == null || raw === "") {
+    return { $expr: { $eq: [1, 0] } };
+  }
+  const str = String(raw).trim();
+  if (mongoose.Types.ObjectId.isValid(str) && new mongoose.Types.ObjectId(str).toString() === str) {
+    const oid = new mongoose.Types.ObjectId(str);
+    return { userId: { $in: [oid, str] } };
+  }
+  return { userId: str };
+}
+
+function normalizeUserIdForStorage(userFromJwt) {
+  const raw = userFromJwt?.id ?? userFromJwt?._id ?? userFromJwt?.userId;
+  if (raw == null || raw === "") return null;
+  const str = String(raw).trim();
+  if (mongoose.Types.ObjectId.isValid(str) && new mongoose.Types.ObjectId(str).toString() === str) {
+    return new mongoose.Types.ObjectId(str);
+  }
+  return str;
 }
 
 function normalizePayload(input) {
@@ -169,7 +194,12 @@ function buildSyntheticTransaction(forceHighRisk = false) {
   };
 }
 
-async function runSimulation({ simulationId, userId, count, durationSeconds, fraudRatio }) {
+/** Server-side random pressure for synthetic “fraud-like” traffic each tick (not user-controlled). */
+function sampleRandomFraudPressure() {
+  return 0.1 + Math.random() * 0.55;
+}
+
+async function runSimulation({ simulationId, userId, count, durationSeconds }) {
   const job = simulations.get(simulationId);
   if (!job) {
     return;
@@ -192,7 +222,7 @@ async function runSimulation({ simulationId, userId, count, durationSeconds, fra
     }
 
     try {
-      const forceHighRisk = Math.random() < fraudRatio;
+      const forceHighRisk = Math.random() < sampleRandomFraudPressure();
       const payload = buildSyntheticTransaction(forceHighRisk);
       const { response } = await scoreAndPersistTransaction({
         payload,
@@ -234,7 +264,7 @@ router.post("/", auth, async (req, res) => {
   try {
     const { response } = await scoreAndPersistTransaction({
       payload,
-      userId: req.user.id,
+      userId: normalizeUserIdForStorage(req.user),
       source: "manual",
     });
 
@@ -249,7 +279,7 @@ router.post("/", auth, async (req, res) => {
 router.get("/history", auth, async (req, res) => {
   const limit = clamp(Number(req.query.limit) || 50, 1, 250);
 
-  const transactions = await Transaction.find({ userId: req.user.id })
+  const transactions = await Transaction.find(transactionUserScope(req.user))
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
@@ -279,17 +309,27 @@ router.get("/history", auth, async (req, res) => {
 });
 
 router.get("/stats", auth, async (req, res) => {
-  const limit = clamp(Number(req.query.limit) || 200, 20, 1000);
-  const transactions = await Transaction.find({ userId: req.user.id })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean();
+  try {
+  const scope = transactionUserScope(req.user);
+  const defaultLimit = 3000;
+  const maxLimit = 10000;
+  const limit = clamp(Number(req.query.limit) || defaultLimit, 1, maxLimit);
 
-  const ordered = [...transactions].reverse();
+  const [totalInDatabase, transactions] = await Promise.all([
+    Transaction.countDocuments(scope),
+    Transaction.find(scope).sort({ createdAt: -1 }).limit(limit).lean(),
+  ]);
+
+  const amounts = transactions
+    .map((tx) => tx.model_input?.transaction_amount)
+    .filter((n) => n != null && !Number.isNaN(Number(n)));
   const totals = {
     total_transactions: transactions.length,
     fraudulent_transactions: transactions.filter((tx) => tx.prediction === 1).length,
     high_risk_transactions: transactions.filter((tx) => tx.risk_level === "High").length,
+    medium_risk_transactions: transactions.filter((tx) => tx.risk_level === "Medium").length,
+    manual_transactions: transactions.filter((tx) => tx.source === "manual").length,
+    simulation_transactions: transactions.filter((tx) => tx.source === "simulation").length,
     alerts_triggered: transactions.filter((tx) => tx.alert_triggered).length,
     average_fraud_score: transactions.length
       ? Number(
@@ -299,6 +339,9 @@ router.get("/stats", auth, async (req, res) => {
           ).toFixed(4)
         )
       : 0,
+    average_transaction_amount: amounts.length
+      ? Number((amounts.reduce((sum, n) => sum + Number(n), 0) / amounts.length).toFixed(2))
+      : 0,
   };
 
   const risk_distribution = [
@@ -307,7 +350,7 @@ router.get("/stats", auth, async (req, res) => {
     { label: "High", value: transactions.filter((tx) => tx.risk_level === "High").length },
   ];
 
-  const byField = (fieldName) => {
+  const byField = (fieldName, maxEntries = 20) => {
     const counts = new Map();
     for (const tx of transactions) {
       const key = tx.model_input?.[fieldName] || "Unknown";
@@ -316,22 +359,36 @@ router.get("/stats", auth, async (req, res) => {
     return [...counts.entries()]
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
+      .slice(0, maxEntries);
   };
 
-  const trend = ordered.map((tx) => ({
-    label: new Date(tx.createdAt).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }),
-    fraudScore: Number((tx.final_score ?? tx.fraud_score ?? 0).toFixed(4)),
-    amount: tx.model_input?.transaction_amount || 0,
-    predictedFraud: tx.prediction === 1 ? 1 : 0,
-  }));
+  const ordered = [...transactions].reverse();
 
+  function buildActivityBuckets(chrono) {
+    if (chrono.length === 0) return [];
+    const bucketCount = Math.min(14, Math.max(4, Math.ceil(chrono.length / 12)));
+    const size = Math.ceil(chrono.length / bucketCount);
+    const buckets = [];
+    for (let i = 0; i < bucketCount; i++) {
+      const slice = chrono.slice(i * size, (i + 1) * size);
+      if (!slice.length) break;
+      buckets.push({
+        count: slice.length,
+        fraud: slice.filter((t) => t.prediction === 1).length,
+      });
+    }
+    return buckets;
+  }
+
+  const sparkLen = Math.min(150, Math.max(24, ordered.length));
+  const fraud_scores = ordered
+    .slice(-sparkLen)
+    .map((tx) => Number((tx.final_score ?? tx.fraud_score ?? 0).toFixed(4)));
+  const activity_buckets = buildActivityBuckets(ordered);
+
+  const uidForJob = normalizeUserIdForStorage(req.user);
   const simulation_status = [...simulations.values()]
-    .filter((job) => String(job.userId) === String(req.user.id))
+    .filter((job) => String(job.userId) === String(uidForJob ?? req.user.id))
     .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
     .slice(0, 5)
     .map((job) => ({
@@ -355,26 +412,37 @@ router.get("/stats", auth, async (req, res) => {
         ? Number((totals.fraudulent_transactions / totals.total_transactions).toFixed(4))
         : 0,
     },
+    meta: {
+      total_in_database: totalInDatabase,
+      analytics_sample_size: transactions.length,
+      analytics_limit_requested: limit,
+    },
     charts: {
       risk_distribution,
       by_location: byField("location"),
       by_payment_method: byField("payment_method"),
       by_transaction_type: byField("transaction_type"),
-      trend,
+      kpi_series: {
+        fraud_scores,
+        activity_buckets,
+      },
     },
     simulation_status,
   });
+  } catch (e) {
+    console.error("GET /stats error:", e);
+    return res.status(500).json({ error: "Failed to load stats", message: e.message });
+  }
 });
 
 router.post("/simulate", auth, async (req, res) => {
   const count = clamp(Number(req.body.count) || 100, 10, 1000);
   const durationSeconds = clamp(Number(req.body.durationSeconds) || 120, 10, 600);
-  const fraudRatio = clamp(Number(req.body.fraudRatio) || 0.3, 0.05, 0.95);
 
   const simulationId = crypto.randomUUID();
   const job = {
     id: simulationId,
-    userId: req.user.id,
+    userId: normalizeUserIdForStorage(req.user) ?? req.user.id,
     status: "running",
     total: count,
     processed: 0,
@@ -388,10 +456,9 @@ router.post("/simulate", auth, async (req, res) => {
   simulations.set(simulationId, job);
   runSimulation({
     simulationId,
-    userId: req.user.id,
+    userId: normalizeUserIdForStorage(req.user) ?? req.user.id,
     count,
     durationSeconds,
-    fraudRatio,
   });
 
   return res.status(202).json({
@@ -399,14 +466,15 @@ router.post("/simulate", auth, async (req, res) => {
     status: "running",
     total: count,
     duration_seconds: durationSeconds,
-    fraud_ratio: fraudRatio,
+    fraud_mix: "server_random",
   });
 });
 
 router.get("/simulate/:id", auth, async (req, res) => {
   const job = simulations.get(req.params.id);
 
-  if (!job || String(job.userId) !== String(req.user.id)) {
+  const uid = normalizeUserIdForStorage(req.user) ?? req.user.id;
+  if (!job || String(job.userId) !== String(uid)) {
     return res.status(404).json({ error: "Simulation not found" });
   }
 

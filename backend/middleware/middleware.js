@@ -10,7 +10,11 @@ module.exports = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const id = decoded.id ?? decoded.sub ?? decoded.userId;
+    if (!id) {
+      return res.status(401).json({ message: "Invalid token payload" });
+    }
+    req.user = { ...decoded, id };
     next();
   } catch {
     res.status(401).json({ message: "Invalid token" });
