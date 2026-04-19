@@ -22,7 +22,7 @@ pipeline {
         echo "JWT_SECRET=superdupersecret" >> .env
         echo "GITHUB_CLIENT_ID=YOUR_ID" >> .env
         echo "GITHUB_CLIENT_SECRET=YOUR_SECRET" >> .env
-        echo "GITHUB_CALLBACK_URL=http://localhost:8080/auth/github/callback" >> .env
+        echo "GITHUB_CALLBACK_URL=https://dispersal-scrunch-shopper.ngrok-free.dev/auth/github/callback" >> .env
         echo "ML_SERVICE_URL=http://ml-service:8000/predict" >> .env
 
         docker compose down
