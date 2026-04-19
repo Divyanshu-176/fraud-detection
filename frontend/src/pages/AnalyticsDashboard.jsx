@@ -57,7 +57,7 @@ export default function AnalyticsDashboard() {
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Analytics</h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
             KPIs and charts aggregate a wide recent window (not only an active simulation). With shared analytics
-            (default), recent activity includes all users’ latest rows; the User column shows a short id suffix. iiiiiiiiiiiiiiiiiiiii
+            (default), recent activity includes all users’ latest rows; the User column shows a short id suffix. iiiiiiiiiiiiidddddddddddddddd
           </p>
         </div>
         <button
