@@ -52,13 +52,12 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="flex flex-col gap-10">
-      iuhfiuhfiuhfuhfiuh
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Analytics</h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
             KPIs and charts aggregate a wide recent window (not only an active simulation). With shared analytics
-            (default), recent activity includes all users’ latest rows; the User column shows a short id suffix.
+            (default), recent activity includes all users’ latest rows; the User column shows a short id suffix.diuhdiuhdiuhduhd
           </p>
         </div>
         <button
