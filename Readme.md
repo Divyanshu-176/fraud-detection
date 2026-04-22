@@ -17,6 +17,16 @@ For a **short comparison of CI/CD, Jenkins, Docker, containers, webhooks, and ng
 
 If you already have Mongo running locally on `mongodb://localhost:27017`, skip this.
 
+
+
+sudo systemctl start docker
+sudo chmod 666 /var/run/docker.sock
+docker start jenkins
+ngrok http 9090
+
+
+
+
 With Docker:
 
 ```bash
