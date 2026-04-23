@@ -25,6 +25,9 @@ const numericFields = [
     label: "Prior fraudulent txs",
   },
 ];
+const numericFieldLabels = Object.fromEntries(
+  numericFields.map((field) => [field.key, field.label])
+);
 
 const transactionTypeOptions = [
   "ATM Withdrawal",
@@ -71,6 +74,21 @@ export default function TransactionForm({ onTransactionProcessed }) {
   const submitTransaction = async () => {
     try {
       setLoading(true);
+      const invalidNumericField = numericFields.find((field) => {
+        const rawValue = String(formData[field.key] ?? "").trim();
+        if (rawValue === "") return false;
+        const num = Number(rawValue);
+        return !Number.isFinite(num) || num < 0 || !Number.isInteger(num);
+      });
+
+      if (invalidNumericField) {
+        setLoading(false);
+        alert(
+          `${numericFieldLabels[invalidNumericField.key]} must be a non-negative whole number (no decimals).`
+        );
+        return;
+      }
+
       const payload = {
         ...formData,
         transaction_amount: Number(formData.transaction_amount),
